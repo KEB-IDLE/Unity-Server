@@ -4,6 +4,80 @@ const WebSocket = require("ws");
 
 const app = express();
 const port = 3000;
+
+app.use(express.json());
+
+// 유저 정보
+app.get("/api/user", (req, res) => {
+  res.json({
+    user_id: 1,
+    nickname: "TestUser",
+    profile_icon_id: 1,
+    profile_char_id: 1,
+    level: 1,
+    exp: 0,
+    gold: 1000,
+  });
+});
+
+// 보유한 아이콘 목록
+app.get("/api/user/icons", (req, res) => {
+  res.json([1, 2, 3]);
+});
+
+// 랭크 기록
+app.get("/api/user/record", (req, res) => {
+  res.json({
+    user_id: 1,
+    last_login_at: new Date().toISOString(),
+    rank_match_count: 10,
+    rank_wins: 6,
+    rank_losses: 4,
+    rank_point: 1200,
+    tier: "Bronze",
+    global_rank: 123,
+  });
+});
+
+// 글로벌 랭킹
+app.get("/api/ranking", (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { rank: 1, nickname: "Alice", profile_icon_id: 1, rank_point: 1500 },
+      { rank: 2, nickname: "Bob", profile_icon_id: 2, rank_point: 1400 },
+      { rank: 3, nickname: "Charlie", profile_icon_id: 3, rank_point: 1300 },
+    ],
+  });
+});
+
+// 매칭 큐 등록
+app.post("/api/match/join", (req, res) => {
+  console.log("🟢 매칭 큐 등록 요청:", req.body);
+  res.json({ matched: false }); // 매칭 성공 여부 (false로 고정)
+});
+
+// 매칭 상태 확인
+app.get("/api/match/status", (req, res) => {
+  console.log("🟡 매칭 상태 요청:", req.query);
+
+  const now = Date.now();
+  const startTime = Math.floor((now + 3000) / 1000); // 3초 뒤 시작
+
+  res.json({
+    matched: true,
+    opponentId: "user-1",
+    roomId: "room-abc",
+    start_at: startTime.toString(),
+  });
+});
+
+// 매칭 종료 처리
+app.post("/api/match/end", (req, res) => {
+  console.log("🏁 매칭 종료 처리:", req.body);
+  res.json({ success: true, message: "게임 종료 처리 완료" });
+});
+
 const server = createServer(app);
 const wss = new WebSocket.Server({ server });
 
@@ -89,7 +163,14 @@ wss.on("connection", function (ws) {
         if (readyCount === 2 && clients.length === 2) {
           console.log("🚀 모든 유저 ready → gameStart 브로드캐스트");
           broadcast("gameStart");
+
+          // ✅ ready 상태 초기화 (중복 방지)
+          for (const client of clients) {
+            const state = clientStates.get(client);
+            if (state) state.ready = false;
+          }
         }
+
       }
 
       else {
